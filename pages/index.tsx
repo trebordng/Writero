@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export default function Home() {
   //Create a state with all the posts
-  const [allPosts, setAllPosts] = useState([]);
+  const [allPosts, setAllPosts] = useState<never[]>([]);
 
   const getPosts = async () => {
     const collectionRef = collection(db, "posts");
