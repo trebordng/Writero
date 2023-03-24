@@ -3,12 +3,20 @@ import { useRouter } from "next/router";
 import { auth, db } from "../../utils/firebase";
 import { toast } from "react-toastify";
 import { useEffect, useState } from "react";
-import { arrayUnion, doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
+import {
+  arrayUnion,
+  doc,
+  getDoc,
+  onSnapshot,
+  Timestamp,
+  updateDoc,
+} from "firebase/firestore";
 const Details = () => {
   const router = useRouter();
   const routeData = router.query;
   const [message, setMessage] = useState("");
   const [allMessages, setAllMessages] = useState([]);
+  const [hasChange, setHasChange] = useState(false);
 
   const submitMessage = async () => {
     if (!auth.currentUser) return router.push("/auth/login");
@@ -20,28 +28,29 @@ const Details = () => {
       return;
     }
     const docRef = doc(db, "posts", routeData.id);
-    await updateDoc(docRef,{
-      comments:arrayUnion({
-          message,
-          avatar: auth.currentUser.photoURL,
-          username:auth.currentUser.displayName,
-          time: Timestamp.now()
-      })
-    })
-
-    setMessage("")
+    await updateDoc(docRef, {
+      comments: arrayUnion({
+        message,
+        avatar: auth.currentUser.photoURL,
+        username: auth.currentUser.displayName,
+        time: Timestamp.now(),
+      }),
+    });
+    setHasChange(!hasChange);
+    setMessage("");
   };
 
   const getComments = async () => {
-    const docRef = doc(db,'posts',routeData.id)
-    const docSnap = await getDoc(docRef)
-    setAllMessages(docSnap.data().comments)
-  }
+    const docRef = doc(db, "posts", routeData.id);
+    const unsubscribe = onSnapshot(docRef, (snapshot) => {
+      setAllMessages(snapshot.data().comments);
+    });
+    return unsubscribe;
+  };
   useEffect(() => {
-    if (router.isReady) {
-      getComments()
-    }
-  },[allMessages]);
+    if (!router.isReady) return;
+    getComments();
+  }, [router.isReady]);
   return (
     <div>
       <Message {...routeData}>
@@ -67,11 +76,14 @@ const Details = () => {
               return (
                 <div className="bg-white p-4 my-4 border-2" key={index}>
                   <div className="flex items-center gap-2 pb-4">
-                    <img className="w-10 rounded-full" src={message.avatar} alt="" />
+                    <img
+                      className="w-10 rounded-full"
+                      src={message.avatar}
+                      alt=""
+                    />
                     <h2>{message.username}</h2>
                   </div>
                   <h2>{message.message}</h2>
-
                 </div>
               );
             })}
